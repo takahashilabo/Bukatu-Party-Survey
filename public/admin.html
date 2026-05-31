@@ -182,7 +182,7 @@
           <h2>参加者一覧</h2>
           <table class="result-table">
             <thead>
-              <tr><th>名前・区分</th></tr>
+              <tr><th>名前・区分</th><th>座席</th></tr>
             </thead>
             <tbody id="attendee-body"></tbody>
           </table>
@@ -347,8 +347,10 @@ async function showDetail(id) {
     const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
     const price = choices.reduce((sum, c) => sum + (event.prices[c] || 0), 0);
     total += price;
-    const badgesHtml = choices.length
-      ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join(' ')
+    const BADGE_ORDER = ['父', '母', '子'];
+    const sorted = [...choices].sort((a, b) => BADGE_ORDER.indexOf(a) - BADGE_ORDER.indexOf(b));
+    const badgesHtml = sorted.length
+      ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join(' ')
       : '<span style="color:#bbb">未回答</span>';
     return `<tr>
       <td>${esc(name)}</td>
@@ -369,7 +371,7 @@ async function showDetail(id) {
         const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
         return choices.includes(choice);
       })
-      .map(name => `<tr><td>${esc(name)}・${esc(choice)}</td></tr>`);
+      .map(name => `<tr><td>${esc(name)}・${esc(choice)}</td><td></td></tr>`);
   });
   document.getElementById('attendee-body').innerHTML =
     attendeeRows.length ? attendeeRows.join('') : '<tr><td style="color:#aaa">参加者なし</td></tr>';
