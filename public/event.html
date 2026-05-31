@@ -142,7 +142,7 @@ function render() {
           <span class="edit-icon" onclick="toggleEdit('${escJs(name)}')">✏️</span>
         </div>
         <div class="choice-panel" id="panel-${esc(name)}">
-          <div class="panel-hint">参加する人をタップしてください</div>
+          <div class="panel-hint">参加する人をタップしてください。選択が終わりましたら閉じるをタップしてください。</div>
           <div class="choice-grid">
             ${['父','母','子','参加しない'].map(c => {
               const isOn = choices.includes(c);
