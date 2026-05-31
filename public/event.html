@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>参加確認</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+  .header { background: #fff; padding: 16px; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; }
+  .header h1 { font-size: 1.1rem; font-weight: 700; }
+  .header .date { font-size: .8rem; color: #888; margin-top: 2px; }
+  .container { max-width: 640px; margin: 0 auto; padding: 16px 16px 100px; }
+  .instruction { background: #ebf4ff; border-radius: 10px; padding: 12px 14px; font-size: .85rem; color: #2b6cb0; margin-bottom: 16px; }
+
+  /* メンバーリスト */
+  .member-list { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .member-row { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #f0f0f0; gap: 12px; transition: background .15s; }
+  .member-row:last-child { border-bottom: none; }
+  .member-row.editing { background: #f0f7ff; }
+  .member-name { flex: 1; font-size: .95rem; font-weight: 500; cursor: pointer; user-select: none; }
+  .member-name:hover { color: #4a90e2; }
+  .choice-badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: .8rem; font-weight: 600; }
+  .choice-父 { background: #ebf4ff; color: #2b6cb0; }
+  .choice-母 { background: #fef3f3; color: #c53030; }
+  .choice-子 { background: #f0fff4; color: #276749; }
+  .choice-参加しない { background: #f7fafc; color: #718096; }
+  .choice-未回答 { background: #f7f7f7; color: #bbb; }
+  .edit-icon { color: #ccc; font-size: 1rem; cursor: pointer; padding: 4px; }
+  .edit-icon:hover { color: #4a90e2; }
+
+  /* 選択パネル（行内展開） */
+  .choice-panel { display: none; padding: 8px 16px 14px; background: #f0f7ff; border-bottom: 1px solid #d0e6ff; }
+  .choice-panel.open { display: block; }
+  .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .choice-btn { padding: 12px 8px; border: 2px solid #ddd; border-radius: 10px; background: #fff; font-size: .9rem; font-weight: 600; cursor: pointer; text-align: center; color: #555; transition: all .15s; }
+  .choice-btn:hover { border-color: #4a90e2; color: #4a90e2; background: #f0f7ff; }
+  .choice-btn.selected { border-color: #4a90e2; color: #4a90e2; background: #ebf4ff; }
+  .choice-btn.selected-父 { border-color: #2b6cb0; color: #2b6cb0; background: #ebf4ff; }
+  .choice-btn.selected-母 { border-color: #c53030; color: #c53030; background: #fef3f3; }
+  .choice-btn.selected-子 { border-color: #276749; color: #276749; background: #f0fff4; }
+  .choice-btn.selected-参加しない { border-color: #718096; color: #718096; background: #f7fafc; }
+  .cancel-row { text-align: center; margin-top: 10px; }
+  .cancel-btn { background: none; border: none; color: #aaa; font-size: .85rem; cursor: pointer; }
+  .cancel-btn:hover { color: #555; }
+  .price-hint { font-size: .75rem; color: #999; margin-top: 3px; }
+
+  /* 合計フッター */
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #eee; padding: 14px 20px; box-shadow: 0 -2px 12px rgba(0,0,0,.06); }
+  .footer-inner { max-width: 640px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+  .footer-label { font-size: .85rem; color: #888; }
+  .footer-total { font-size: 1.4rem; font-weight: 700; color: #333; }
+  .footer-detail { font-size: .75rem; color: #aaa; margin-top: 2px; }
+
+  .loading { text-align: center; padding: 48px; color: #aaa; }
+  .error-msg { text-align: center; padding: 48px; color: #e53e3e; }
+  .saving-toast { position: fixed; top: 16px; right: 16px; background: #333; color: #fff; padding: 8px 16px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 100; }
+  .saving-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="event-title">読み込み中...</h1>
+  <div class="date" id="event-date"></div>
+</div>
+
+<div class="container">
+  <div class="instruction">自分の名前をタップして参加形式を選択してください</div>
+  <div id="member-list-wrap">
+    <div class="loading">読み込み中...</div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-label">参加費合計</div>
+      <div class="footer-detail" id="footer-detail"></div>
+    </div>
+    <div class="footer-total" id="footer-total">¥0</div>
+  </div>
+</div>
+
+<div class="saving-toast" id="toast">保存しました</div>
+
+<script>
+const eventId = location.pathname.split('/').filter(Boolean).pop();
+let eventData = null;
+let responses = {};
+let openMember = null;
+
+async function load() {
+  const res = await fetch(`/api/events/${eventId}`);
+  if (!res.ok) {
+    document.getElementById('member-list-wrap').innerHTML = '<div class="error-msg">イベントが見つかりません</div>';
+    return;
+  }
+  const data = await res.json();
+  eventData = data;
+  responses = data.responses || {};
+  document.getElementById('event-title').textContent = data.title;
+  document.getElementById('event-date').textContent = data.date || '';
+  document.title = data.title + ' - 参加確認';
+  render();
+}
+
+function render() {
+  const wrap = document.getElementById('member-list-wrap');
+  const members = eventData.members;
+  const prices = eventData.prices;
+
+  const html = `<div class="member-list">${members.map(name => {
+    const r = responses[name];
+    const choice = r ? r.choice : null;
+    const badgeClass = choice ? `choice-${choice}` : 'choice-未回答';
+    const badgeText = choice || '未回答';
+    return `
+      <div>
+        <div class="member-row" id="row-${esc(name)}" data-name="${esc(name)}">
+          <div class="member-name" onclick="toggleEdit('${escJs(name)}')">${esc(name)}</div>
+          <span class="choice-badge ${badgeClass}" id="badge-${esc(name)}">${badgeText}</span>
+          <span class="edit-icon" onclick="toggleEdit('${escJs(name)}')">✏️</span>
+        </div>
+        <div class="choice-panel" id="panel-${esc(name)}">
+          <div class="choice-grid">
+            ${['父','母','子','参加しない'].map(c => {
+              const isSelected = choice === c;
+              const price = prices[c] || 0;
+              return `<div>
+                <button class="choice-btn ${isSelected ? 'selected-'+c : ''}"
+                  onclick="selectChoice('${escJs(name)}', '${c}')">
+                  ${c}
+                </button>
+                <div class="price-hint">${price > 0 ? '¥' + price.toLocaleString() : '無料'}</div>
+              </div>`;
+            }).join('')}
+          </div>
+          <div class="cancel-row">
+            <button class="cancel-btn" onclick="cancelEdit('${escJs(name)}')">キャンセル（閉じる）</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('')}</div>`;
+
+  wrap.innerHTML = html;
+  updateTotal();
+}
+
+function toggleEdit(name) {
+  if (openMember === name) {
+    cancelEdit(name);
+    return;
+  }
+  if (openMember) cancelEdit(openMember);
+  openMember = name;
+  document.getElementById(`panel-${name}`).classList.add('open');
+  document.getElementById(`row-${name}`).classList.add('editing');
+}
+
+function cancelEdit(name) {
+  openMember = null;
+  const panel = document.getElementById(`panel-${name}`);
+  const row = document.getElementById(`row-${name}`);
+  if (panel) panel.classList.remove('open');
+  if (row) row.classList.remove('editing');
+}
+
+async function selectChoice(name, choice) {
+  responses[name] = { choice };
+  cancelEdit(name);
+
+  // バッジ更新
+  const badge = document.getElementById(`badge-${name}`);
+  badge.className = `choice-badge choice-${choice}`;
+  badge.textContent = choice;
+  updateTotal();
+
+  // 選択ボタンの見た目を更新（パネル内）
+  const panel = document.getElementById(`panel-${name}`);
+  if (panel) {
+    panel.querySelectorAll('.choice-btn').forEach(btn => {
+      btn.className = 'choice-btn';
+    });
+    // 該当するボタンに selected クラスを付ける
+    panel.querySelectorAll('.choice-btn').forEach(btn => {
+      if (btn.textContent.trim() === choice) {
+        btn.className = `choice-btn selected-${choice}`;
+      }
+    });
+  }
+
+  // APIに保存
+  showToast('保存中...');
+  const res = await fetch(`/api/events/${eventId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ memberName: name, choice }),
+  });
+  if (res.ok) {
+    showToast('保存しました ✓');
+  } else {
+    showToast('保存に失敗しました');
+  }
+}
+
+function updateTotal() {
+  if (!eventData) return;
+  const prices = eventData.prices;
+  let total = 0;
+  const details = [];
+  for (const [name, r] of Object.entries(responses)) {
+    const price = prices[r.choice] || 0;
+    total += price;
+    if (price > 0) details.push(`${r.choice}×${countChoice(r.choice)}`);
+  }
+  document.getElementById('footer-total').textContent = '¥' + total.toLocaleString();
+
+  // 内訳
+  const counts = {};
+  for (const r of Object.values(responses)) {
+    if (r.choice !== '参加しない') counts[r.choice] = (counts[r.choice] || 0) + 1;
+  }
+  const detailText = Object.entries(counts).map(([c, n]) => `${c}×${n}`).join(' ');
+  document.getElementById('footer-detail').textContent = detailText;
+}
+
+function countChoice(choice) {
+  return Object.values(responses).filter(r => r.choice === choice).length;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function esc(str) {
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escJs(str) {
+  return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+load();
+</script>
+</body>
+</html>
