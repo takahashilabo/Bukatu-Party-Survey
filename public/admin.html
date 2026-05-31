@@ -21,6 +21,8 @@
   .btn-sm { padding: 6px 14px; font-size: .85rem; }
   .btn-outline { background: transparent; border: 1px solid #ccc; color: #555; }
   .btn-outline:hover { background: #f0f0f0; }
+  .btn-danger { background: transparent; border: 1px solid #fc8181; color: #e53e3e; }
+  .btn-danger:hover { background: #fff5f5; }
   .form-row { margin-bottom: 12px; }
   .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .event-list { list-style: none; }
@@ -147,7 +149,10 @@
       </div>
       <!-- イベント詳細 -->
       <div id="event-detail" style="display:none">
-        <button class="back-btn" onclick="backToList()">← 一覧に戻る</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <button class="back-btn" style="margin-bottom:0" onclick="backToList()">← 一覧に戻る</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteEvent(currentEventId, document.getElementById('detail-title').textContent)">削除</button>
+        </div>
         <div class="card">
           <h2 id="detail-title"></h2>
           <div style="font-size:.85rem;color:#888;margin-bottom:4px" id="detail-date"></div>
@@ -307,7 +312,8 @@ async function loadEvents() {
         <div class="event-title">${esc(ev.title)}</div>
         <div class="event-date">${esc(ev.date || '日程未設定')}</div>
       </div>
-      <button class="btn btn-outline btn-sm" onclick="showDetail('${ev.id}')">詳細</button>
+      <button class="btn btn-outline btn-sm" onclick="showDetail('${ev.id}')" style="margin-right:6px">詳細</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteEvent('${ev.id}', '${escJs(ev.title)}')">削除</button>
     </li>
   `).join('');
 }
@@ -346,6 +352,16 @@ async function showDetail(id) {
   document.getElementById('detail-total').textContent = '¥' + total.toLocaleString();
 }
 
+async function deleteEvent(id, title) {
+  if (!confirm(`「${title}」を削除しますか？\n回答データも含めて完全に削除されます。`)) return;
+  const data = await api('DELETE', `/api/admin/events/${id}`);
+  if (data.ok) {
+    backToList();
+  } else {
+    alert(data.error || '削除に失敗しました');
+  }
+}
+
 function backToList() {
   document.getElementById('events-view').style.display = 'block';
   document.getElementById('event-detail').style.display = 'none';
@@ -363,6 +379,9 @@ function copyUrl() {
 
 function esc(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escJs(str) {
+  return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 </script>
 </body>
