@@ -18,9 +18,11 @@
   .member-row { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #f0f0f0; gap: 12px; transition: background .15s; }
   .member-row:last-child { border-bottom: none; }
   .member-row.editing { background: #f0f7ff; }
-  .member-name { flex: 1; font-size: .95rem; font-weight: 500; cursor: pointer; user-select: none; min-width: 0; }
+  .member-info { flex: 1; cursor: pointer; user-select: none; min-width: 0; }
+  .member-name { font-size: .95rem; font-weight: 500; }
   .member-name:hover { color: #4a90e2; }
-  .badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+  .member-subtotal { font-size: .8rem; font-weight: 700; color: #4a90e2; margin-top: 2px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; align-items: center; }
   .choice-badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: .8rem; font-weight: 600; white-space: nowrap; }
   .choice-父 { background: #ebf4ff; color: #2b6cb0; }
   .choice-母 { background: #fef3f3; color: #c53030; }
@@ -121,14 +123,21 @@ function render() {
   const html = `<div class="member-list">${members.map(name => {
     const r = responses[name];
     const choices = r ? r.choices : [];
+    const subtotal = choices.reduce((s, c) => s + (prices[c] || 0), 0);
     const badgesHtml = choices.length
       ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
       : `<span class="choice-badge choice-未回答">未回答</span>`;
+    const subtotalText = choices.length
+      ? (subtotal > 0 ? '¥' + subtotal.toLocaleString() : '無料')
+      : '';
 
     return `
       <div>
         <div class="member-row" id="row-${esc(name)}" data-name="${esc(name)}">
-          <div class="member-name" onclick="toggleEdit('${escJs(name)}')">${esc(name)}</div>
+          <div class="member-info" onclick="toggleEdit('${escJs(name)}')">
+            <div class="member-name">${esc(name)}</div>
+            <div class="member-subtotal" id="subtotal-${esc(name)}">${subtotalText}</div>
+          </div>
           <div class="badges" id="badge-${esc(name)}">${badgesHtml}</div>
           <span class="edit-icon" onclick="toggleEdit('${escJs(name)}')">✏️</span>
         </div>
@@ -212,11 +221,20 @@ async function toggleChoice(name, choice) {
 }
 
 function updateBadge(name, choices) {
-  const el = document.getElementById(`badge-${name}`);
-  if (!el) return;
-  el.innerHTML = choices.length
-    ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
-    : `<span class="choice-badge choice-未回答">未回答</span>`;
+  const badgeEl = document.getElementById(`badge-${name}`);
+  if (badgeEl) {
+    badgeEl.innerHTML = choices.length
+      ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
+      : `<span class="choice-badge choice-未回答">未回答</span>`;
+  }
+  const subtotalEl = document.getElementById(`subtotal-${name}`);
+  if (subtotalEl) {
+    const prices = eventData.prices;
+    const subtotal = choices.reduce((s, c) => s + (prices[c] || 0), 0);
+    subtotalEl.textContent = choices.length
+      ? (subtotal > 0 ? '¥' + subtotal.toLocaleString() : '無料')
+      : '';
+  }
 }
 
 function updatePanel(name, choices) {
