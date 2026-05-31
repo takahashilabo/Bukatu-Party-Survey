@@ -85,7 +85,9 @@
 <div class="saving-toast" id="toast">保存しました</div>
 
 <script>
-const eventId = location.pathname.split('/').filter(Boolean).pop();
+// /event/abc123 (production) or /event.html?id=abc123 (local dev)
+const _pathId = location.pathname.split('/').filter(s => s && s !== 'event.html').pop();
+const eventId = (_pathId && _pathId !== 'event') ? _pathId : (new URLSearchParams(location.search).get('id') || '');
 let eventData = null;
 let responses = {};
 let openMember = null;

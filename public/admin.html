@@ -182,6 +182,14 @@
 <script>
 let adminPw = '';
 
+function eventUrl(id) {
+  // ローカル開発時はクエリパラメータ形式、本番はパス形式
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    return `${location.origin}/event.html?id=${id}`;
+  }
+  return eventUrl(id);
+}
+
 async function api(method, path, body) {
   const res = await fetch(path, {
     method,
@@ -265,7 +273,7 @@ async function createEvent() {
   const data = await api('POST', '/api/admin/events', { title, date, prices });
   if (data.ok) {
     msg.className = 'msg success';
-    const url = `${location.origin}/event/${data.id}`;
+    const url = eventUrl(data.id);
     msg.textContent = `作成しました！ ${url}`;
     document.getElementById('ev-title').value = '';
     document.getElementById('ev-date').value = '';
@@ -304,7 +312,7 @@ async function showDetail(id) {
   const { event, responses } = data;
   document.getElementById('detail-title').textContent = event.title;
   document.getElementById('detail-date').textContent = event.date || '';
-  const url = `${location.origin}/event/${id}`;
+  const url = eventUrl(id);
   document.getElementById('detail-url').textContent = url;
 
   let total = 0;
@@ -332,7 +340,7 @@ function backToList() {
 }
 
 function copyUrl() {
-  const url = `${location.origin}/event/${currentEventId}`;
+  const url = eventUrl(currentEventId);
   navigator.clipboard.writeText(url).then(() => {
     const btn = document.querySelector('.copy-btn');
     btn.textContent = 'コピーしました！';
