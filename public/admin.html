@@ -130,7 +130,7 @@
             </div>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="createEvent()">作成</button>
+        <button class="btn btn-primary" onclick="submitEvent()">作成</button>
         <div class="msg" id="create-msg"></div>
       </div>
     </div>
@@ -262,7 +262,7 @@ async function saveMembers() {
 }
 
 // ---- イベント作成 ----
-async function createEvent() {
+async function submitEvent() {
   const msg = document.getElementById('create-msg');
   try {
     msg.className = 'msg';
