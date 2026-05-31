@@ -15,7 +15,7 @@ npx wrangler kv:namespace create "KV" --preview
 
 ### 2. 環境変数を Cloudflare に設定
 
-Cloudflare ダッシュボード → Pages → line-survey → Settings → Environment variables で以下を追加：
+Cloudflare ダッシュボード → Pages → bukatu-party-survey → Settings → Environment variables で以下を追加：
 
 | 変数名 | 値 | 説明 |
 |--------|-----|------|

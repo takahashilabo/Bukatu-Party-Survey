@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "line-survey",
+      "name": "bukatu-party-survey",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "public", "-p", "4321", "--no-clipboard"],
       "port": 4321
