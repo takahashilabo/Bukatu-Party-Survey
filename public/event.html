@@ -70,7 +70,7 @@
 </div>
 
 <div class="container">
-  <div class="instruction">自分の名前をタップして参加形式を選択してください</div>
+  <div class="instruction">自分の名前をタップしてください</div>
   <div id="member-list-wrap">
     <div class="loading">読み込み中...</div>
   </div>
@@ -142,7 +142,7 @@ function render() {
           <span class="edit-icon" onclick="toggleEdit('${escJs(name)}')">✏️</span>
         </div>
         <div class="choice-panel" id="panel-${esc(name)}">
-          <div class="panel-hint">複数選択できます（「参加しない」を選ぶと他はクリアされます）</div>
+          <div class="panel-hint">参加する人をタップしてください</div>
           <div class="choice-grid">
             ${['父','母','子','参加しない'].map(c => {
               const isOn = choices.includes(c);
