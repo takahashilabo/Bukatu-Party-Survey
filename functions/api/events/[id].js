@@ -1,5 +1,7 @@
 import { json, err } from "../../_shared.js";
 
+const VALID_CHOICES = ["父", "母", "子", "参加しない"];
+
 export async function onRequest({ request, env, params }) {
   const id = params.id;
   const raw = await env.KV.get(`event:${id}`);
@@ -8,13 +10,11 @@ export async function onRequest({ request, env, params }) {
   const event = JSON.parse(raw);
 
   if (request.method === "GET") {
-    // 各メンバーの回答を取得
     const responses = {};
     for (const name of event.members) {
       const r = await env.KV.get(`response:${id}:${name}`);
       if (r) responses[name] = JSON.parse(r);
     }
-    // 公開情報のみ返す（members, prices, title, date）
     return json({
       id: event.id,
       title: event.title,
@@ -26,15 +26,20 @@ export async function onRequest({ request, env, params }) {
   }
 
   if (request.method === "POST") {
-    const { memberName, choice } = await request.json();
-    if (!memberName || !choice) return err("memberName と choice は必須です");
+    const body = await request.json();
+    const { memberName } = body;
+    // choices: 配列（新形式）、choice: 文字列（旧形式も受け付け）
+    const choices = body.choices ?? (body.choice ? [body.choice] : null);
+
+    if (!memberName || !choices) return err("memberName と choices は必須です");
     if (!event.members.includes(memberName)) return err("メンバーが見つかりません");
-    const validChoices = ["父", "母", "子", "参加しない"];
-    if (!validChoices.includes(choice)) return err("無効な選択肢です");
+    if (!Array.isArray(choices) || choices.some(c => !VALID_CHOICES.includes(c))) {
+      return err("無効な選択肢が含まれています");
+    }
 
     await env.KV.put(
       `response:${id}:${memberName}`,
-      JSON.stringify({ choice, updatedAt: new Date().toISOString() })
+      JSON.stringify({ choices, updatedAt: new Date().toISOString() })
     );
     return json({ ok: true });
   }

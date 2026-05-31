@@ -328,13 +328,16 @@ async function showDetail(id) {
   let total = 0;
   const rows = event.members.map(name => {
     const r = responses[name];
-    const choice = r ? r.choice : '未回答';
-    const price = r && event.prices[r.choice] ? event.prices[r.choice] : 0;
+    // 旧形式（choice）・新形式（choices）両対応
+    const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
+    const price = choices.reduce((sum, c) => sum + (event.prices[c] || 0), 0);
     total += price;
-    const badgeClass = r ? `choice-${r.choice}` : '';
+    const badgesHtml = choices.length
+      ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join(' ')
+      : '<span style="color:#bbb">未回答</span>';
     return `<tr>
       <td>${esc(name)}</td>
-      <td><span class="choice-badge ${badgeClass}">${esc(choice)}</span></td>
+      <td>${badgesHtml}</td>
       <td style="text-align:right">${price > 0 ? '¥' + price.toLocaleString() : '-'}</td>
     </tr>`;
   }).join('');
