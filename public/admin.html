@@ -79,9 +79,9 @@
     <h1>管理画面</h1>
 
     <div class="tab-bar">
-      <button class="tab active" onclick="switchTab('members')">メンバー</button>
-      <button class="tab" onclick="switchTab('create')">イベント作成</button>
-      <button class="tab" onclick="switchTab('events')">イベント一覧</button>
+      <button class="tab active" onclick="switchTab(this,'members')">メンバー</button>
+      <button class="tab" onclick="switchTab(this,'create')">イベント作成</button>
+      <button class="tab" onclick="switchTab(this,'events')">イベント一覧</button>
     </div>
 
     <!-- メンバー管理 -->
@@ -230,10 +230,10 @@ document.getElementById('pw-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') login();
 });
 
-function switchTab(name) {
+function switchTab(btn, name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  event.target.classList.add('active');
+  btn.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'events') loadEvents();
 }
@@ -263,27 +263,33 @@ async function saveMembers() {
 
 // ---- イベント作成 ----
 async function createEvent() {
-  const title = document.getElementById('ev-title').value.trim();
-  const date = document.getElementById('ev-date').value.trim();
-  const prices = {
-    父: parseInt(document.getElementById('price-父').value) || 0,
-    母: parseInt(document.getElementById('price-母').value) || 0,
-    子: parseInt(document.getElementById('price-子').value) || 0,
-    参加しない: 0,
-  };
   const msg = document.getElementById('create-msg');
-  if (!title) { msg.textContent = 'タイトルを入力してください'; return; }
-
-  const data = await api('POST', '/api/admin/events', { title, date, prices });
-  if (data.ok) {
-    msg.className = 'msg success';
-    const url = eventUrl(data.id);
-    msg.textContent = `作成しました！ ${url}`;
-    document.getElementById('ev-title').value = '';
-    document.getElementById('ev-date').value = '';
-  } else {
+  try {
     msg.className = 'msg';
-    msg.textContent = data.error || 'エラーが発生しました';
+    msg.textContent = '送信中...';
+
+    const title = document.getElementById('ev-title').value.trim();
+    const date = document.getElementById('ev-date').value.trim();
+    const prices = {
+      父: parseInt(document.getElementById('price-父').value) || 0,
+      母: parseInt(document.getElementById('price-母').value) || 0,
+      子: parseInt(document.getElementById('price-子').value) || 0,
+      参加しない: 0,
+    };
+    if (!title) { msg.textContent = 'タイトルを入力してください'; return; }
+
+    const data = await api('POST', '/api/admin/events', { title, date, prices });
+    if (data.ok) {
+      msg.className = 'msg success';
+      const url = eventUrl(data.id);
+      msg.textContent = `作成しました！ ${url}`;
+      document.getElementById('ev-title').value = '';
+      document.getElementById('ev-date').value = '';
+    } else {
+      msg.textContent = data.error || 'エラーが発生しました';
+    }
+  } catch (e) {
+    msg.textContent = 'エラー: ' + e.message;
   }
 }
 
