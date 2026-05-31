@@ -360,15 +360,16 @@ async function showDetail(id) {
   document.getElementById('detail-body').innerHTML = rows;
   document.getElementById('detail-total').textContent = '¥' + total.toLocaleString();
 
-  // 参加者一覧（父→母→子の順、参加しない・未回答は除外）
-  const CHOICE_ORDER = ['父', '母', '子'];
-  const attendeeRows = event.members.flatMap(name => {
-    const r = responses[name];
-    const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
-    return choices
-      .filter(c => c !== '参加しない')
-      .sort((a, b) => CHOICE_ORDER.indexOf(a) - CHOICE_ORDER.indexOf(b))
-      .map(c => `<tr><td>${esc(name)}・${esc(c)}</td></tr>`);
+  // 参加者一覧：子→父→母の順でグループ化
+  const ATTENDEE_ORDER = ['子', '父', '母'];
+  const attendeeRows = ATTENDEE_ORDER.flatMap(choice => {
+    return event.members
+      .filter(name => {
+        const r = responses[name];
+        const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
+        return choices.includes(choice);
+      })
+      .map(name => `<tr><td>${esc(name)}・${esc(choice)}</td></tr>`);
   });
   document.getElementById('attendee-body').innerHTML =
     attendeeRows.length ? attendeeRows.join('') : '<tr><td style="color:#aaa">参加者なし</td></tr>';
