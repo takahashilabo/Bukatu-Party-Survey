@@ -178,6 +178,15 @@
             </tfoot>
           </table>
         </div>
+        <div class="card">
+          <h2>参加者一覧</h2>
+          <table class="result-table">
+            <thead>
+              <tr><th>名前・区分</th></tr>
+            </thead>
+            <tbody id="attendee-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -350,6 +359,19 @@ async function showDetail(id) {
 
   document.getElementById('detail-body').innerHTML = rows;
   document.getElementById('detail-total').textContent = '¥' + total.toLocaleString();
+
+  // 参加者一覧（父→母→子の順、参加しない・未回答は除外）
+  const CHOICE_ORDER = ['父', '母', '子'];
+  const attendeeRows = event.members.flatMap(name => {
+    const r = responses[name];
+    const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
+    return choices
+      .filter(c => c !== '参加しない')
+      .sort((a, b) => CHOICE_ORDER.indexOf(a) - CHOICE_ORDER.indexOf(b))
+      .map(c => `<tr><td>${esc(name)}・${esc(c)}</td></tr>`);
+  });
+  document.getElementById('attendee-body').innerHTML =
+    attendeeRows.length ? attendeeRows.join('') : '<tr><td style="color:#aaa">参加者なし</td></tr>';
 }
 
 async function deleteEvent(id, title) {

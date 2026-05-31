@@ -89,6 +89,11 @@
 <div class="saving-toast" id="toast">保存しました</div>
 
 <script>
+const CHOICE_ORDER = ['父', '母', '子', '参加しない'];
+function sortChoices(choices) {
+  return [...choices].sort((a, b) => CHOICE_ORDER.indexOf(a) - CHOICE_ORDER.indexOf(b));
+}
+
 // /event/abc123 (production) or /event.html?id=abc123 (local dev)
 const _pathId = location.pathname.split('/').filter(s => s && s !== 'event.html').pop();
 const eventId = (_pathId && _pathId !== 'event') ? _pathId : (new URLSearchParams(location.search).get('id') || '');
@@ -124,8 +129,9 @@ function render() {
     const r = responses[name];
     const choices = r ? r.choices : [];
     const subtotal = choices.reduce((s, c) => s + (prices[c] || 0), 0);
-    const badgesHtml = choices.length
-      ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
+    const sorted = sortChoices(choices);
+    const badgesHtml = sorted.length
+      ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
       : `<span class="choice-badge choice-未回答">未回答</span>`;
     const subtotalText = choices.length
       ? (subtotal > 0 ? '¥' + subtotal.toLocaleString() : '無料')
@@ -223,8 +229,9 @@ async function toggleChoice(name, choice) {
 function updateBadge(name, choices) {
   const badgeEl = document.getElementById(`badge-${name}`);
   if (badgeEl) {
-    badgeEl.innerHTML = choices.length
-      ? choices.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
+    const sorted = sortChoices(choices);
+    badgeEl.innerHTML = sorted.length
+      ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
       : `<span class="choice-badge choice-未回答">未回答</span>`;
   }
   const subtotalEl = document.getElementById(`subtotal-${name}`);
