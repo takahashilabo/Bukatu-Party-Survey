@@ -93,6 +93,10 @@ const CHOICE_ORDER = ['父', '母', '子', '参加しない'];
 function sortChoices(choices) {
   return [...choices].sort((a, b) => CHOICE_ORDER.indexOf(a) - CHOICE_ORDER.indexOf(b));
 }
+// 名前をHTML id属性に安全に使うため空白等をエスケープ
+function nameToId(name) {
+  return name.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_　-鿿゠-ヿ぀-ゟ]/g, '_');
+}
 
 // /event/abc123 (production) or /event.html?id=abc123 (local dev)
 const _pathId = location.pathname.split('/').filter(s => s && s !== 'event.html').pop();
@@ -139,15 +143,15 @@ function render() {
 
     return `
       <div>
-        <div class="member-row" id="row-${esc(name)}" data-name="${esc(name)}">
+        <div class="member-row" id="row-${nameToId(name)}" data-name="${esc(name)}">
           <div class="member-info" onclick="toggleEdit('${escJs(name)}')">
             <div class="member-name">${esc(name)}</div>
-            <div class="member-subtotal" id="subtotal-${esc(name)}">${subtotalText}</div>
+            <div class="member-subtotal" id="subtotal-${nameToId(name)}">${subtotalText}</div>
           </div>
-          <div class="badges" id="badge-${esc(name)}">${badgesHtml}</div>
+          <div class="badges" id="badge-${nameToId(name)}">${badgesHtml}</div>
           <span class="edit-icon" onclick="toggleEdit('${escJs(name)}')">✏️</span>
         </div>
-        <div class="choice-panel" id="panel-${esc(name)}">
+        <div class="choice-panel" id="panel-${nameToId(name)}">
           <div class="panel-hint">参加する人をタップしてください。選択が終わりましたら閉じるをタップしてください。</div>
           <div class="choice-grid">
             ${['父','母','子','参加しない'].map(c => {
@@ -155,7 +159,7 @@ function render() {
               const price = prices[c] || 0;
               return `<div>
                 <button class="choice-btn ${isOn ? 'on-'+c : ''}"
-                  id="btn-${esc(name)}-${esc(c)}"
+                  id="btn-${nameToId(name)}-${esc(c)}"
                   onclick="toggleChoice('${escJs(name)}', '${c}')">
                   ${c}${isOn ? '<span class="check-mark">✓</span>' : ''}
                 </button>
@@ -179,14 +183,14 @@ function toggleEdit(name) {
   if (openMember === name) { cancelEdit(name); return; }
   if (openMember) cancelEdit(openMember);
   openMember = name;
-  document.getElementById(`panel-${name}`).classList.add('open');
-  document.getElementById(`row-${name}`).classList.add('editing');
+  document.getElementById(`panel-${nameToId(name)}`).classList.add('open');
+  document.getElementById(`row-${nameToId(name)}`).classList.add('editing');
 }
 
 function cancelEdit(name) {
   openMember = null;
-  const panel = document.getElementById(`panel-${name}`);
-  const row = document.getElementById(`row-${name}`);
+  const panel = document.getElementById(`panel-${nameToId(name)}`);
+  const row = document.getElementById(`row-${nameToId(name)}`);
   if (panel) panel.classList.remove('open');
   if (row) row.classList.remove('editing');
 }
@@ -227,14 +231,14 @@ async function toggleChoice(name, choice) {
 }
 
 function updateBadge(name, choices) {
-  const badgeEl = document.getElementById(`badge-${name}`);
+  const badgeEl = document.getElementById(`badge-${nameToId(name)}`);
   if (badgeEl) {
     const sorted = sortChoices(choices);
     badgeEl.innerHTML = sorted.length
       ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
       : `<span class="choice-badge choice-未回答">未回答</span>`;
   }
-  const subtotalEl = document.getElementById(`subtotal-${name}`);
+  const subtotalEl = document.getElementById(`subtotal-${nameToId(name)}`);
   if (subtotalEl) {
     const prices = eventData.prices;
     const subtotal = choices.reduce((s, c) => s + (prices[c] || 0), 0);
@@ -246,7 +250,7 @@ function updateBadge(name, choices) {
 
 function updatePanel(name, choices) {
   ['父','母','子','参加しない'].forEach(c => {
-    const btn = document.getElementById(`btn-${name}-${c}`);
+    const btn = document.getElementById(`btn-${nameToId(name)}-${esc(c)}`);
     if (!btn) return;
     const isOn = choices.includes(c);
     btn.className = `choice-btn ${isOn ? 'on-'+c : ''}`;
