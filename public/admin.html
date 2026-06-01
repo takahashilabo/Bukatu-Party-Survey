@@ -198,7 +198,7 @@ let adminPw = '';
 
 function eventUrl(id) {
   // クエリパラメータ形式で統一（ローカル・本番共通）
-  return `${location.origin}/event?id=${id}`;
+  return `${location.origin}/survey?id=${id}`;
 }
 
 async function api(method, path, body) {

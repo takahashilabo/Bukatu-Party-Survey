@@ -98,9 +98,8 @@ function nameToId(name) {
   return name.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_　-鿿゠-ヿ぀-ゟ]/g, '_');
 }
 
-// /event/abc123 (production) or /event.html?id=abc123 (local dev)
-const _pathId = location.pathname.split('/').filter(s => s && s !== 'event.html').pop();
-const eventId = (_pathId && _pathId !== 'event') ? _pathId : (new URLSearchParams(location.search).get('id') || '');
+// /survey?id=abc123
+const eventId = new URLSearchParams(location.search).get('id') || '';
 let eventData = null;
 let responses = {};   // { name: { choices: [...] } }
 let openMember = null;
