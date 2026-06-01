@@ -10,11 +10,14 @@ export async function onRequest({ request, env, params }) {
   const event = JSON.parse(raw);
 
   if (request.method === "GET") {
+    // 全メンバーの回答を並列取得
+    const results = await Promise.all(
+      event.members.map(name => env.KV.get(`response:${id}:${name}`))
+    );
     const responses = {};
-    for (const name of event.members) {
-      const r = await env.KV.get(`response:${id}:${name}`);
-      if (r) responses[name] = JSON.parse(r);
-    }
+    event.members.forEach((name, i) => {
+      if (results[i]) responses[name] = JSON.parse(results[i]);
+    });
     return json({
       id: event.id,
       title: event.title,

@@ -10,21 +10,23 @@ export async function onRequest({ request, env, params }) {
   const event = JSON.parse(raw);
 
   if (request.method === "GET") {
+    // 全メンバーの回答を並列取得
+    const results = await Promise.all(
+      event.members.map(name => env.KV.get(`response:${id}:${name}`))
+    );
     const responses = {};
-    for (const name of event.members) {
-      const r = await env.KV.get(`response:${id}:${name}`);
-      if (r) responses[name] = JSON.parse(r);
-    }
+    event.members.forEach((name, i) => {
+      if (results[i]) responses[name] = JSON.parse(results[i]);
+    });
     return json({ event, responses });
   }
 
   if (request.method === "DELETE") {
-    // イベント本体を削除
-    await env.KV.delete(`event:${id}`);
-    // 回答を削除
-    for (const name of event.members) {
-      await env.KV.delete(`response:${id}:${name}`);
-    }
+    // イベント本体を削除、回答も並列削除
+    await Promise.all([
+      env.KV.delete(`event:${id}`),
+      ...event.members.map(name => env.KV.delete(`response:${id}:${name}`)),
+    ]);
     // インデックスから除外
     const rawIndex = await env.KV.get("events_index");
     if (rawIndex) {
