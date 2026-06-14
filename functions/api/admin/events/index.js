@@ -30,7 +30,7 @@ export async function onRequest({ request, env }) {
         父: prices?.父 ?? 0,
         母: prices?.母 ?? 0,
         子: prices?.子 ?? 0,
-        参加しない: 0,
+        誰も参加しない: 0,
       },
       members,
       createdAt: new Date().toISOString(),

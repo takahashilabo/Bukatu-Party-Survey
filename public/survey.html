@@ -27,7 +27,7 @@
   .choice-父 { background: #ebf4ff; color: #2b6cb0; }
   .choice-母 { background: #fef3f3; color: #c53030; }
   .choice-子 { background: #f0fff4; color: #276749; }
-  .choice-参加しない { background: #f7fafc; color: #718096; }
+  .choice-誰も参加しない { background: #f7fafc; color: #718096; }
   .choice-未回答 { background: #f7f7f7; color: #bbb; }
   .edit-icon { color: #ccc; font-size: 1rem; cursor: pointer; padding: 4px; flex-shrink: 0; }
   .edit-icon:hover { color: #4a90e2; }
@@ -42,7 +42,7 @@
   .choice-btn.on-父  { border-color: #2b6cb0; color: #2b6cb0; background: #ebf4ff; }
   .choice-btn.on-母  { border-color: #c53030; color: #c53030; background: #fef3f3; }
   .choice-btn.on-子  { border-color: #276749; color: #276749; background: #f0fff4; }
-  .choice-btn.on-参加しない { border-color: #718096; color: #718096; background: #f7fafc; }
+  .choice-btn.on-誰も参加しない { border-color: #718096; color: #718096; background: #f7fafc; }
   .check-mark { position: absolute; top: 4px; right: 6px; font-size: .7rem; }
   .cancel-row { text-align: center; margin-top: 10px; }
   .cancel-btn { background: none; border: none; color: #aaa; font-size: .85rem; cursor: pointer; }
@@ -89,7 +89,7 @@
 <div class="saving-toast" id="toast">保存しました</div>
 
 <script>
-const CHOICE_ORDER = ['父', '母', '子', '参加しない'];
+const CHOICE_ORDER = ['父', '母', '子', '誰も参加しない'];
 function sortChoices(choices) {
   return [...choices].sort((a, b) => CHOICE_ORDER.indexOf(a) - CHOICE_ORDER.indexOf(b));
 }
@@ -153,7 +153,7 @@ function render() {
         <div class="choice-panel" id="panel-${nameToId(name)}">
           <div class="panel-hint">参加する人をタップしてください。選択が終わりましたら閉じるをタップしてください。</div>
           <div class="choice-grid">
-            ${['父','母','子','参加しない'].map(c => {
+            ${['父','母','子','誰も参加しない'].map(c => {
               const isOn = choices.includes(c);
               const price = prices[c] || 0;
               return `<div>
@@ -198,12 +198,12 @@ async function toggleChoice(name, choice) {
   const r = responses[name] || { choices: [] };
   let choices = [...r.choices];
 
-  if (choice === '参加しない') {
-    // 参加しないを選ぶと他をクリア
-    choices = choices.includes('参加しない') ? [] : ['参加しない'];
+  if (choice === '誰も参加しない') {
+    // 誰も参加しないを選ぶと他をクリア
+    choices = choices.includes('誰も参加しない') ? [] : ['誰も参加しない'];
   } else {
-    // 父・母・子のトグル：参加しないは除外
-    choices = choices.filter(c => c !== '参加しない');
+    // 父・母・子のトグル：誰も参加しないは除外
+    choices = choices.filter(c => c !== '誰も参加しない');
     if (choices.includes(choice)) {
       choices = choices.filter(c => c !== choice);
     } else {
@@ -248,7 +248,7 @@ function updateBadge(name, choices) {
 }
 
 function updatePanel(name, choices) {
-  ['父','母','子','参加しない'].forEach(c => {
+  ['父','母','子','誰も参加しない'].forEach(c => {
     const btn = document.getElementById(`btn-${nameToId(name)}-${esc(c)}`);
     if (!btn) return;
     const isOn = choices.includes(c);

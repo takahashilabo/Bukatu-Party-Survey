@@ -1,6 +1,6 @@
 import { json, err } from "../../_shared.js";
 
-const VALID_CHOICES = ["父", "母", "子", "参加しない"];
+const VALID_CHOICES = ["父", "母", "子", "誰も参加しない"];
 
 export async function onRequest({ request, env, params }) {
   const id = params.id;

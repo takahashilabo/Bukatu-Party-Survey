@@ -55,7 +55,7 @@
   .choice-父 { background: #ebf4ff; color: #2b6cb0; }
   .choice-母 { background: #fef3f3; color: #c53030; }
   .choice-子 { background: #f0fff4; color: #276749; }
-  .choice-参加しない { background: #f7fafc; color: #718096; }
+  .choice-誰も参加しない { background: #f7fafc; color: #718096; }
   .total-row td { font-weight: 700; color: #333; border-top: 2px solid #eee !important; }
   .back-btn { background: none; border: none; color: #4a90e2; font-size: .9rem; cursor: pointer; padding: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 4px; }
   #main-screen { display: none; }
@@ -127,7 +127,7 @@
               <input type="number" id="price-子" placeholder="2000" min="0">
             </div>
             <div>
-              <label>参加しない</label>
+              <label>誰も参加しない</label>
               <input type="number" value="0" disabled style="background:#f5f5f5;color:#999">
             </div>
           </div>
@@ -285,7 +285,7 @@ async function submitEvent() {
       父: parseInt(document.getElementById('price-父').value) || 0,
       母: parseInt(document.getElementById('price-母').value) || 0,
       子: parseInt(document.getElementById('price-子').value) || 0,
-      参加しない: 0,
+      誰も参加しない: 0,
     };
     if (!title) { msg.textContent = 'タイトルを入力してください'; return; }
 
