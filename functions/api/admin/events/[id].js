@@ -1,5 +1,17 @@
 import { checkAdmin, json, err } from "../../../_shared.js";
 
+function normalizeChoices(event) {
+  if (event.choices) return event.choices;
+  const LEGACY_ORDER = ["父", "母", "子", "誰も参加しない", "参加しない"];
+  return LEGACY_ORDER
+    .filter(k => k in (event.prices || {}))
+    .map(k => ({
+      label: k,
+      price: event.prices[k] || 0,
+      exclusive: k === "誰も参加しない" || k === "参加しない",
+    }));
+}
+
 export async function onRequest({ request, env, params }) {
   if (!checkAdmin(request, env)) return err("認証エラー", 401);
 
@@ -10,7 +22,6 @@ export async function onRequest({ request, env, params }) {
   const event = JSON.parse(raw);
 
   if (request.method === "GET") {
-    // 全メンバーの回答を並列取得
     const results = await Promise.all(
       event.members.map(name => env.KV.get(`response:${id}:${name}`))
     );
@@ -18,7 +29,8 @@ export async function onRequest({ request, env, params }) {
     event.members.forEach((name, i) => {
       if (results[i]) responses[name] = JSON.parse(results[i]);
     });
-    return json({ event, responses });
+    const normalizedEvent = { ...event, choices: normalizeChoices(event) };
+    return json({ event: normalizedEvent, responses });
   }
 
   if (request.method === "DELETE") {

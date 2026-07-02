@@ -24,13 +24,11 @@
   .btn-danger { background: transparent; border: 1px solid #fc8181; color: #e53e3e; }
   .btn-danger:hover { background: #fff5f5; }
   .form-row { margin-bottom: 12px; }
-  .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .event-list { list-style: none; }
   .event-item { padding: 12px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
   .event-item:last-child { border-bottom: none; }
   .event-title { font-weight: 600; font-size: .95rem; }
   .event-date { font-size: .8rem; color: #888; margin-top: 2px; }
-  .event-link { font-size: .8rem; color: #4a90e2; word-break: break-all; }
   .tab-bar { display: flex; gap: 0; margin-bottom: 16px; background: #e8e8e8; border-radius: 10px; padding: 3px; }
   .tab { flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: .9rem; cursor: pointer; font-weight: 500; color: #666; border: none; background: none; }
   .tab.active { background: #fff; color: #333; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
@@ -52,13 +50,18 @@
   .result-table td { padding: 8px 6px; border-bottom: 1px solid #f0f0f0; }
   .result-table tr:last-child td { border-bottom: none; }
   .choice-badge { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: .8rem; font-weight: 600; }
-  .choice-父 { background: #ebf4ff; color: #2b6cb0; }
-  .choice-母 { background: #fef3f3; color: #c53030; }
-  .choice-子 { background: #f0fff4; color: #276749; }
-  .choice-誰も参加しない { background: #f7fafc; color: #718096; }
   .total-row td { font-weight: 700; color: #333; border-top: 2px solid #eee !important; }
   .back-btn { background: none; border: none; color: #4a90e2; font-size: .9rem; cursor: pointer; padding: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 4px; }
   #main-screen { display: none; }
+  /* 選択肢エディタ */
+  .choice-editor-header { display: flex; gap: 8px; font-size: .72rem; color: #999; font-weight: 600; margin-bottom: 4px; padding: 0 2px; }
+  .choice-editor-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .choice-editor-row input[type="text"] { flex: 1; padding: 8px 10px; font-size: .9rem; }
+  .choice-editor-row input[type="number"] { width: 90px; padding: 8px 10px; font-size: .9rem; }
+  .choice-excl-label { display: flex; align-items: center; gap: 4px; font-size: .8rem; color: #555; white-space: nowrap; cursor: pointer; }
+  .choice-excl-label input[type="checkbox"] { width: auto; }
+  .remove-choice-btn { background: none; border: none; color: #fc8181; cursor: pointer; font-size: 1.2rem; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+  .remove-choice-btn:hover { color: #e53e3e; }
 </style>
 </head>
 <body>
@@ -112,25 +115,16 @@
           <input type="text" id="ev-date" placeholder="12月20日（金）">
         </div>
         <div class="form-row">
-          <label>参加費（円）</label>
-          <div class="price-grid">
-            <div>
-              <label>父</label>
-              <input type="number" id="price-父" placeholder="5000" min="0">
-            </div>
-            <div>
-              <label>母</label>
-              <input type="number" id="price-母" placeholder="4000" min="0">
-            </div>
-            <div>
-              <label>子</label>
-              <input type="number" id="price-子" placeholder="2000" min="0">
-            </div>
-            <div>
-              <label>誰も参加しない</label>
-              <input type="number" value="0" disabled style="background:#f5f5f5;color:#999">
-            </div>
+          <label>選択肢</label>
+          <div class="choice-editor-header">
+            <span style="flex:1">名称</span>
+            <span style="width:90px">参加費（円）</span>
+            <span style="width:52px;text-align:center">排他</span>
+            <span style="width:20px"></span>
           </div>
+          <div id="choices-editor"></div>
+          <button type="button" onclick="addChoiceRow()" class="btn btn-outline btn-sm" style="margin-top:6px">+ 選択肢を追加</button>
+          <div style="font-size:.75rem;color:#999;margin-top:6px">排他: チェックすると、この選択肢を選んだとき他の選択肢がクリアされます</div>
         </div>
         <button class="btn btn-primary" onclick="submitEvent()">作成</button>
         <div class="msg" id="create-msg"></div>
@@ -196,8 +190,26 @@
 <script>
 let adminPw = '';
 
+const CHOICE_THEMES = [
+  { bg: '#ebf4ff', fg: '#2b6cb0' },
+  { bg: '#fef3f3', fg: '#c53030' },
+  { bg: '#f0fff4', fg: '#276749' },
+  { bg: '#faf5ff', fg: '#6b46c1' },
+  { bg: '#fff8e1', fg: '#b7791f' },
+  { bg: '#e6fffa', fg: '#285e61' },
+];
+const EXCL_THEME = { bg: '#f7fafc', fg: '#718096' };
+
+function buildThemeMap(choices) {
+  let idx = 0;
+  const map = {};
+  for (const c of choices) {
+    map[c.label] = c.exclusive ? EXCL_THEME : CHOICE_THEMES[idx++ % CHOICE_THEMES.length];
+  }
+  return map;
+}
+
 function eventUrl(id) {
-  // クエリパラメータ形式で統一（ローカル・本番共通）
   return `${location.origin}/survey?id=${id}`;
 }
 
@@ -232,6 +244,7 @@ async function login() {
     document.getElementById('main-screen').style.display = 'block';
     loadMembers();
     loadEvents();
+    initChoiceEditor();
   } else {
     document.getElementById('login-err').textContent = 'パスワードが違います';
   }
@@ -272,6 +285,50 @@ async function saveMembers() {
   }
 }
 
+// ---- 選択肢エディタ ----
+const DEFAULT_CHOICES = [
+  { label: '父', price: 0, exclusive: false },
+  { label: '母', price: 0, exclusive: false },
+  { label: '子', price: 0, exclusive: false },
+  { label: '誰も参加しない', price: 0, exclusive: true },
+];
+
+function initChoiceEditor() {
+  document.getElementById('choices-editor').innerHTML = '';
+  DEFAULT_CHOICES.forEach(c => addChoiceRow(c.label, c.price, c.exclusive));
+}
+
+function addChoiceRow(label = '', price = 0, exclusive = false) {
+  const container = document.getElementById('choices-editor');
+  const row = document.createElement('div');
+  row.className = 'choice-editor-row';
+  row.innerHTML = `
+    <input type="text" class="choice-label-input" placeholder="名称" value="${esc(String(label))}">
+    <input type="number" class="choice-price-input" placeholder="0" min="0" value="${Number(price) || 0}">
+    <label class="choice-excl-label">
+      <input type="checkbox" class="choice-excl-input"${exclusive ? ' checked' : ''}> 排他
+    </label>
+    <button type="button" class="remove-choice-btn" onclick="removeChoiceRow(this)" title="削除">×</button>
+  `;
+  container.appendChild(row);
+}
+
+function removeChoiceRow(btn) {
+  btn.closest('.choice-editor-row').remove();
+}
+
+function readChoiceEditor() {
+  const rows = document.querySelectorAll('#choices-editor .choice-editor-row');
+  const choices = [];
+  rows.forEach(row => {
+    const label = row.querySelector('.choice-label-input').value.trim();
+    const price = parseInt(row.querySelector('.choice-price-input').value) || 0;
+    const exclusive = row.querySelector('.choice-excl-input').checked;
+    if (label) choices.push({ label, price, exclusive });
+  });
+  return choices;
+}
+
 // ---- イベント作成 ----
 async function submitEvent() {
   const msg = document.getElementById('create-msg');
@@ -281,21 +338,19 @@ async function submitEvent() {
 
     const title = document.getElementById('ev-title').value.trim();
     const date = document.getElementById('ev-date').value.trim();
-    const prices = {
-      父: parseInt(document.getElementById('price-父').value) || 0,
-      母: parseInt(document.getElementById('price-母').value) || 0,
-      子: parseInt(document.getElementById('price-子').value) || 0,
-      誰も参加しない: 0,
-    };
-    if (!title) { msg.textContent = 'タイトルを入力してください'; return; }
+    const choices = readChoiceEditor();
 
-    const data = await api('POST', '/api/admin/events', { title, date, prices });
+    if (!title) { msg.textContent = 'タイトルを入力してください'; return; }
+    if (choices.length === 0) { msg.textContent = '選択肢を1つ以上入力してください'; return; }
+
+    const data = await api('POST', '/api/admin/events', { title, date, choices });
     if (data.ok) {
       msg.className = 'msg success';
       const url = eventUrl(data.id);
       msg.textContent = `作成しました！ ${url}`;
       document.getElementById('ev-title').value = '';
       document.getElementById('ev-date').value = '';
+      initChoiceEditor();
     } else {
       msg.textContent = data.error || 'エラーが発生しました';
     }
@@ -332,6 +387,10 @@ async function showDetail(id) {
 
   const data = await api('GET', `/api/admin/events/${id}`);
   const { event, responses } = data;
+  const themeMap = buildThemeMap(event.choices);
+  const priceMap = Object.fromEntries(event.choices.map(c => [c.label, c.price]));
+  const choiceOrder = event.choices.map(c => c.label);
+
   document.getElementById('detail-title').textContent = event.title;
   document.getElementById('detail-date').textContent = event.date || '';
   const url = eventUrl(id);
@@ -340,14 +399,15 @@ async function showDetail(id) {
   let total = 0;
   const rows = event.members.map(name => {
     const r = responses[name];
-    // 旧形式（choice）・新形式（choices）両対応
-    const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
-    const price = choices.reduce((sum, c) => sum + (event.prices[c] || 0), 0);
+    const selected = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
+    const price = selected.reduce((sum, c) => sum + (priceMap[c] || 0), 0);
     total += price;
-    const BADGE_ORDER = ['父', '母', '子'];
-    const sorted = [...choices].sort((a, b) => BADGE_ORDER.indexOf(a) - BADGE_ORDER.indexOf(b));
+    const sorted = [...selected].sort((a, b) => choiceOrder.indexOf(a) - choiceOrder.indexOf(b));
     const badgesHtml = sorted.length
-      ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join(' ')
+      ? sorted.map(c => {
+          const t = themeMap[c] || EXCL_THEME;
+          return `<span class="choice-badge" style="background:${t.bg};color:${t.fg}">${esc(c)}</span>`;
+        }).join(' ')
       : '<span style="color:#bbb">未回答</span>';
     return `<tr>
       <td>${esc(name)}</td>
@@ -359,16 +419,16 @@ async function showDetail(id) {
   document.getElementById('detail-body').innerHTML = rows;
   document.getElementById('detail-total').textContent = '¥' + total.toLocaleString();
 
-  // 参加者一覧：子→父→母の順でグループ化
-  const ATTENDEE_ORDER = ['子', '父', '母'];
-  const attendeeRows = ATTENDEE_ORDER.flatMap(choice => {
+  // 参加者一覧：非排他的選択肢のメンバーをグループ化（定義順）
+  const attendeeChoices = event.choices.filter(c => !c.exclusive);
+  const attendeeRows = attendeeChoices.flatMap(choice => {
     return event.members
       .filter(name => {
         const r = responses[name];
-        const choices = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
-        return choices.includes(choice);
+        const selected = r ? (r.choices ?? (r.choice ? [r.choice] : [])) : [];
+        return selected.includes(choice.label);
       })
-      .map(name => `<tr><td>${esc(name)}・${esc(choice)}</td><td></td></tr>`);
+      .map(name => `<tr><td>${esc(name)}・${esc(choice.label)}</td><td></td></tr>`);
   });
   document.getElementById('attendee-body').innerHTML =
     attendeeRows.length ? attendeeRows.join('') : '<tr><td style="color:#aaa">参加者なし</td></tr>';

@@ -10,10 +10,10 @@ export async function onRequest({ request, env }) {
   }
 
   if (request.method === "POST") {
-    const { title, date, prices } = await request.json();
+    const { title, date, choices } = await request.json();
     if (!title) return err("タイトルは必須です");
+    if (!Array.isArray(choices) || choices.length === 0) return err("選択肢は1つ以上必要です");
 
-    // メンバーリストをマスターからコピー
     const rawMembers = await env.KV.get("master_members");
     let members = [];
     if (rawMembers) {
@@ -26,12 +26,11 @@ export async function onRequest({ request, env }) {
       id,
       title,
       date: date || "",
-      prices: {
-        父: prices?.父 ?? 0,
-        母: prices?.母 ?? 0,
-        子: prices?.子 ?? 0,
-        誰も参加しない: 0,
-      },
+      choices: choices.map(c => ({
+        label: String(c.label).trim(),
+        price: Number(c.price) || 0,
+        exclusive: !!c.exclusive,
+      })),
       members,
       createdAt: new Date().toISOString(),
     };

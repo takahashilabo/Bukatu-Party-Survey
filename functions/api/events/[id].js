@@ -1,6 +1,16 @@
 import { json, err } from "../../_shared.js";
 
-const VALID_CHOICES = ["父", "母", "子", "誰も参加しない"];
+function normalizeChoices(event) {
+  if (event.choices) return event.choices;
+  const LEGACY_ORDER = ["父", "母", "子", "誰も参加しない", "参加しない"];
+  return LEGACY_ORDER
+    .filter(k => k in (event.prices || {}))
+    .map(k => ({
+      label: k,
+      price: event.prices[k] || 0,
+      exclusive: k === "誰も参加しない" || k === "参加しない",
+    }));
+}
 
 export async function onRequest({ request, env, params }) {
   const id = params.id;
@@ -8,9 +18,9 @@ export async function onRequest({ request, env, params }) {
   if (!raw) return err("イベントが見つかりません", 404);
 
   const event = JSON.parse(raw);
+  const choices = normalizeChoices(event);
 
   if (request.method === "GET") {
-    // 全メンバーの回答を並列取得
     const results = await Promise.all(
       event.members.map(name => env.KV.get(`response:${id}:${name}`))
     );
@@ -22,7 +32,7 @@ export async function onRequest({ request, env, params }) {
       id: event.id,
       title: event.title,
       date: event.date,
-      prices: event.prices,
+      choices,
       members: event.members,
       responses,
     });
@@ -31,18 +41,19 @@ export async function onRequest({ request, env, params }) {
   if (request.method === "POST") {
     const body = await request.json();
     const { memberName } = body;
-    // choices: 配列（新形式）、choice: 文字列（旧形式も受け付け）
-    const choices = body.choices ?? (body.choice ? [body.choice] : null);
+    const selectedChoices = body.choices ?? (body.choice ? [body.choice] : null);
 
-    if (!memberName || !choices) return err("memberName と choices は必須です");
+    if (!memberName || !selectedChoices) return err("memberName と choices は必須です");
     if (!event.members.includes(memberName)) return err("メンバーが見つかりません");
-    if (!Array.isArray(choices) || choices.some(c => !VALID_CHOICES.includes(c))) {
+
+    const validLabels = choices.map(c => c.label);
+    if (!Array.isArray(selectedChoices) || selectedChoices.some(c => !validLabels.includes(c))) {
       return err("無効な選択肢が含まれています");
     }
 
     await env.KV.put(
       `response:${id}:${memberName}`,
-      JSON.stringify({ choices, updatedAt: new Date().toISOString() })
+      JSON.stringify({ choices: selectedChoices, updatedAt: new Date().toISOString() })
     );
     return json({ ok: true });
   }

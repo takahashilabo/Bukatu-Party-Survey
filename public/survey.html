@@ -24,10 +24,6 @@
   .member-subtotal { font-size: .8rem; font-weight: 700; color: #4a90e2; margin-top: 2px; }
   .badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; align-items: center; }
   .choice-badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: .8rem; font-weight: 600; white-space: nowrap; }
-  .choice-父 { background: #ebf4ff; color: #2b6cb0; }
-  .choice-母 { background: #fef3f3; color: #c53030; }
-  .choice-子 { background: #f0fff4; color: #276749; }
-  .choice-誰も参加しない { background: #f7fafc; color: #718096; }
   .choice-未回答 { background: #f7f7f7; color: #bbb; }
   .edit-icon { color: #ccc; font-size: 1rem; cursor: pointer; padding: 4px; flex-shrink: 0; }
   .edit-icon:hover { color: #4a90e2; }
@@ -39,10 +35,6 @@
   .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .choice-btn { padding: 12px 8px; border: 2px solid #ddd; border-radius: 10px; background: #fff; font-size: .9rem; font-weight: 600; cursor: pointer; text-align: center; color: #555; transition: all .15s; position: relative; }
   .choice-btn:hover { border-color: #4a90e2; color: #4a90e2; background: #f0f7ff; }
-  .choice-btn.on-父  { border-color: #2b6cb0; color: #2b6cb0; background: #ebf4ff; }
-  .choice-btn.on-母  { border-color: #c53030; color: #c53030; background: #fef3f3; }
-  .choice-btn.on-子  { border-color: #276749; color: #276749; background: #f0fff4; }
-  .choice-btn.on-誰も参加しない { border-color: #718096; color: #718096; background: #f7fafc; }
   .check-mark { position: absolute; top: 4px; right: 6px; font-size: .7rem; }
   .cancel-row { text-align: center; margin-top: 10px; }
   .cancel-btn { background: none; border: none; color: #aaa; font-size: .85rem; cursor: pointer; }
@@ -89,20 +81,42 @@
 <div class="saving-toast" id="toast">保存しました</div>
 
 <script>
-const CHOICE_ORDER = ['父', '母', '子', '誰も参加しない'];
-function sortChoices(choices) {
-  return [...choices].sort((a, b) => CHOICE_ORDER.indexOf(a) - CHOICE_ORDER.indexOf(b));
-}
-// 名前をHTML id属性に安全に使うため空白等をエスケープ
-function nameToId(name) {
-  return name.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_　-鿿゠-ヿ぀-ゟ]/g, '_');
-}
+const CHOICE_THEMES = [
+  { bg: '#ebf4ff', fg: '#2b6cb0' },
+  { bg: '#fef3f3', fg: '#c53030' },
+  { bg: '#f0fff4', fg: '#276749' },
+  { bg: '#faf5ff', fg: '#6b46c1' },
+  { bg: '#fff8e1', fg: '#b7791f' },
+  { bg: '#e6fffa', fg: '#285e61' },
+];
+const EXCL_THEME = { bg: '#f7fafc', fg: '#718096' };
 
 // /survey?id=abc123
 const eventId = new URLSearchParams(location.search).get('id') || '';
 let eventData = null;
 let responses = {};   // { name: { choices: [...] } }
 let openMember = null;
+let choiceMap = {};   // { label: { price, exclusive, theme } }
+let choiceOrder = []; // ordered labels
+
+function buildChoiceMap(choices) {
+  let idx = 0;
+  choiceMap = {};
+  choiceOrder = choices.map(c => c.label);
+  for (const c of choices) {
+    const theme = c.exclusive ? EXCL_THEME : CHOICE_THEMES[idx++ % CHOICE_THEMES.length];
+    choiceMap[c.label] = { price: c.price, exclusive: c.exclusive, theme };
+  }
+}
+
+function sortChoices(arr) {
+  return [...arr].sort((a, b) => choiceOrder.indexOf(a) - choiceOrder.indexOf(b));
+}
+
+// 名前をHTML id属性に安全に使うため空白等をエスケープ
+function nameToId(name) {
+  return name.replace(/\s/g, '_').replace(/[^a-zA-Z0-9_　-鿿゠-ヿ぀-ゟ]/g, '_');
+}
 
 async function load() {
   const res = await fetch(`/api/events/${eventId}`);
@@ -112,6 +126,7 @@ async function load() {
   }
   const data = await res.json();
   eventData = data;
+  buildChoiceMap(data.choices);
   // 旧形式（choice: 文字列）を新形式（choices: 配列）に正規化
   responses = {};
   for (const [name, r] of Object.entries(data.responses || {})) {
@@ -126,17 +141,20 @@ async function load() {
 function render() {
   const wrap = document.getElementById('member-list-wrap');
   const members = eventData.members;
-  const prices = eventData.prices;
 
   const html = `<div class="member-list">${members.map(name => {
     const r = responses[name];
-    const choices = r ? r.choices : [];
-    const subtotal = choices.reduce((s, c) => s + (prices[c] || 0), 0);
-    const sorted = sortChoices(choices);
+    const selected = r ? r.choices : [];
+    const subtotal = selected.reduce((s, c) => s + (choiceMap[c]?.price || 0), 0);
+    const sorted = sortChoices(selected);
     const badgesHtml = sorted.length
-      ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
+      ? sorted.map(c => {
+          const info = choiceMap[c];
+          const t = info ? info.theme : EXCL_THEME;
+          return `<span class="choice-badge" style="background:${t.bg};color:${t.fg}">${esc(c)}</span>`;
+        }).join('')
       : `<span class="choice-badge choice-未回答">未回答</span>`;
-    const subtotalText = choices.length
+    const subtotalText = selected.length
       ? (subtotal > 0 ? '¥' + subtotal.toLocaleString() : '無料')
       : '';
 
@@ -153,16 +171,18 @@ function render() {
         <div class="choice-panel" id="panel-${nameToId(name)}">
           <div class="panel-hint">参加する人をタップしてください。選択が終わりましたら閉じるをタップしてください。</div>
           <div class="choice-grid">
-            ${['父','母','子','誰も参加しない'].map(c => {
-              const isOn = choices.includes(c);
-              const price = prices[c] || 0;
+            ${eventData.choices.map(c => {
+              const isOn = selected.includes(c.label);
+              const t = choiceMap[c.label].theme;
+              const btnStyle = isOn ? `border-color:${t.fg};color:${t.fg};background:${t.bg}` : '';
               return `<div>
-                <button class="choice-btn ${isOn ? 'on-'+c : ''}"
-                  id="btn-${nameToId(name)}-${esc(c)}"
-                  onclick="toggleChoice('${escJs(name)}', '${c}')">
-                  ${c}${isOn ? '<span class="check-mark">✓</span>' : ''}
+                <button class="choice-btn"
+                  style="${btnStyle}"
+                  id="btn-${nameToId(name)}-${nameToId(c.label)}"
+                  onclick="toggleChoice('${escJs(name)}', '${escJs(c.label)}')">
+                  ${esc(c.label)}${isOn ? '<span class="check-mark">✓</span>' : ''}
                 </button>
-                <div class="price-hint">${price > 0 ? '¥' + price.toLocaleString() : '無料'}</div>
+                <div class="price-hint">${c.price > 0 ? '¥' + c.price.toLocaleString() : '無料'}</div>
               </div>`;
             }).join('')}
           </div>
@@ -194,26 +214,27 @@ function cancelEdit(name) {
   if (row) row.classList.remove('editing');
 }
 
-async function toggleChoice(name, choice) {
+async function toggleChoice(name, choiceLabel) {
   const r = responses[name] || { choices: [] };
-  let choices = [...r.choices];
+  let selected = [...r.choices];
+  const info = choiceMap[choiceLabel];
 
-  if (choice === '誰も参加しない') {
-    // 誰も参加しないを選ぶと他をクリア
-    choices = choices.includes('誰も参加しない') ? [] : ['誰も参加しない'];
+  if (info && info.exclusive) {
+    // 排他的選択肢: 選択するとすべてクリアして自分だけセット（再クリックで解除）
+    selected = selected.includes(choiceLabel) ? [] : [choiceLabel];
   } else {
-    // 父・母・子のトグル：誰も参加しないは除外
-    choices = choices.filter(c => c !== '誰も参加しない');
-    if (choices.includes(choice)) {
-      choices = choices.filter(c => c !== choice);
+    // 非排他的選択肢: 排他的選択肢をすべてクリアしてトグル
+    selected = selected.filter(c => !choiceMap[c]?.exclusive);
+    if (selected.includes(choiceLabel)) {
+      selected = selected.filter(c => c !== choiceLabel);
     } else {
-      choices = [...choices, choice];
+      selected = [...selected, choiceLabel];
     }
   }
 
-  responses[name] = { choices };
-  updateBadge(name, choices);
-  updatePanel(name, choices);
+  responses[name] = { choices: selected };
+  updateBadge(name, selected);
+  updatePanel(name, selected);
   updateTotal();
 
   showToast('保存中...');
@@ -221,7 +242,7 @@ async function toggleChoice(name, choice) {
     const res = await fetch(`/api/events/${eventId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberName: name, choices }),
+      body: JSON.stringify({ memberName: name, choices: selected }),
     });
     showToast(res.ok ? '保存しました ✓' : '保存に失敗しました');
   } catch (e) {
@@ -229,44 +250,48 @@ async function toggleChoice(name, choice) {
   }
 }
 
-function updateBadge(name, choices) {
+function updateBadge(name, selected) {
   const badgeEl = document.getElementById(`badge-${nameToId(name)}`);
   if (badgeEl) {
-    const sorted = sortChoices(choices);
+    const sorted = sortChoices(selected);
     badgeEl.innerHTML = sorted.length
-      ? sorted.map(c => `<span class="choice-badge choice-${esc(c)}">${esc(c)}</span>`).join('')
+      ? sorted.map(c => {
+          const info = choiceMap[c];
+          const t = info ? info.theme : EXCL_THEME;
+          return `<span class="choice-badge" style="background:${t.bg};color:${t.fg}">${esc(c)}</span>`;
+        }).join('')
       : `<span class="choice-badge choice-未回答">未回答</span>`;
   }
   const subtotalEl = document.getElementById(`subtotal-${nameToId(name)}`);
   if (subtotalEl) {
-    const prices = eventData.prices;
-    const subtotal = choices.reduce((s, c) => s + (prices[c] || 0), 0);
-    subtotalEl.textContent = choices.length
+    const subtotal = selected.reduce((s, c) => s + (choiceMap[c]?.price || 0), 0);
+    subtotalEl.textContent = selected.length
       ? (subtotal > 0 ? '¥' + subtotal.toLocaleString() : '無料')
       : '';
   }
 }
 
-function updatePanel(name, choices) {
-  ['父','母','子','誰も参加しない'].forEach(c => {
-    const btn = document.getElementById(`btn-${nameToId(name)}-${esc(c)}`);
+function updatePanel(name, selected) {
+  eventData.choices.forEach(c => {
+    const btn = document.getElementById(`btn-${nameToId(name)}-${nameToId(c.label)}`);
     if (!btn) return;
-    const isOn = choices.includes(c);
-    btn.className = `choice-btn ${isOn ? 'on-'+c : ''}`;
-    btn.innerHTML = c + (isOn ? '<span class="check-mark">✓</span>' : '');
+    const isOn = selected.includes(c.label);
+    const t = choiceMap[c.label].theme;
+    btn.style = isOn ? `border-color:${t.fg};color:${t.fg};background:${t.bg}` : '';
+    btn.innerHTML = esc(c.label) + (isOn ? '<span class="check-mark">✓</span>' : '');
   });
 }
 
 function updateTotal() {
   if (!eventData) return;
-  const prices = eventData.prices;
   let total = 0;
   const counts = {};
   for (const r of Object.values(responses)) {
-    for (const c of r.choices) {
-      const price = prices[c] || 0;
-      total += price;
-      if (price > 0) counts[c] = (counts[c] || 0) + 1;
+    for (const label of r.choices) {
+      const info = choiceMap[label];
+      if (!info) continue;
+      total += info.price;
+      if (info.price > 0) counts[label] = (counts[label] || 0) + 1;
     }
   }
   document.getElementById('footer-total').textContent = '¥' + total.toLocaleString();
