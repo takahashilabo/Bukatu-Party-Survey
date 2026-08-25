@@ -53,6 +53,9 @@
   .total-row td { font-weight: 700; color: #333; border-top: 2px solid #eee !important; }
   .back-btn { background: none; border: none; color: #4a90e2; font-size: .9rem; cursor: pointer; padding: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 4px; }
   #main-screen { display: none; }
+  /* アーカイブ */
+  .event-item.archived { opacity: 0.55; }
+  .archived-badge { font-size: .72rem; color: #999; background: #f0f0f0; padding: 2px 7px; border-radius: 100px; margin-left: 6px; vertical-align: middle; }
   /* 選択肢エディタ */
   .choice-editor-header { display: flex; gap: 8px; font-size: .72rem; color: #999; font-weight: 600; margin-bottom: 4px; padding: 0 2px; }
   .choice-editor-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
@@ -145,7 +148,10 @@
       <div id="event-detail" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <button class="back-btn" style="margin-bottom:0" onclick="backToList()">← 一覧に戻る</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteEvent(currentEventId, document.getElementById('detail-title').textContent)">削除</button>
+          <div style="display:flex;gap:8px">
+            <button id="detail-archive-btn" class="btn btn-outline btn-sm" onclick="toggleArchiveFromDetail()"></button>
+            <button class="btn btn-danger btn-sm" onclick="deleteEvent(currentEventId, document.getElementById('detail-title').textContent)">削除</button>
+          </div>
         </div>
         <div class="card">
           <h2 id="detail-title"></h2>
@@ -368,11 +374,12 @@ async function loadEvents() {
     return;
   }
   list.innerHTML = data.events.map(ev => `
-    <li class="event-item">
+    <li class="event-item${ev.archived ? ' archived' : ''}">
       <div style="flex:1;min-width:0">
-        <div class="event-title">${esc(ev.title)}</div>
+        <div class="event-title">${esc(ev.title)}${ev.archived ? '<span class="archived-badge">アーカイブ済み</span>' : ''}</div>
         <div class="event-date">${esc(ev.date || '日程未設定')}</div>
       </div>
+      <button class="btn btn-outline btn-sm" onclick="archiveEvent('${ev.id}', ${!ev.archived})" style="margin-right:6px">${ev.archived ? '公開に戻す' : 'アーカイブ'}</button>
       <button class="btn btn-outline btn-sm" onclick="showDetail('${ev.id}')" style="margin-right:6px">詳細</button>
       <button class="btn btn-danger btn-sm" onclick="deleteEvent('${ev.id}', '${escJs(ev.title)}')">削除</button>
     </li>
@@ -380,6 +387,32 @@ async function loadEvents() {
 }
 
 let currentEventId = '';
+let currentEventArchived = false;
+
+async function archiveEvent(id, archived) {
+  const data = await api('PATCH', `/api/admin/events/${id}`, { archived });
+  if (data.ok) {
+    loadEvents();
+  } else {
+    alert(data.error || 'エラーが発生しました');
+  }
+}
+
+async function toggleArchiveFromDetail() {
+  const data = await api('PATCH', `/api/admin/events/${currentEventId}`, { archived: !currentEventArchived });
+  if (data.ok) {
+    currentEventArchived = !currentEventArchived;
+    updateDetailArchiveBtn();
+  } else {
+    alert(data.error || 'エラーが発生しました');
+  }
+}
+
+function updateDetailArchiveBtn() {
+  const btn = document.getElementById('detail-archive-btn');
+  if (btn) btn.textContent = currentEventArchived ? '公開に戻す' : 'アーカイブ';
+}
+
 async function showDetail(id) {
   currentEventId = id;
   document.getElementById('events-view').style.display = 'none';
@@ -387,6 +420,8 @@ async function showDetail(id) {
 
   const data = await api('GET', `/api/admin/events/${id}`);
   const { event, responses } = data;
+  currentEventArchived = !!event.archived;
+  updateDetailArchiveBtn();
   const themeMap = buildThemeMap(event.choices);
   const priceMap = Object.fromEntries(event.choices.map(c => [c.label, c.price]));
   const choiceOrder = event.choices.map(c => c.label);

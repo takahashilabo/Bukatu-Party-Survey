@@ -33,6 +33,20 @@ export async function onRequest({ request, env, params }) {
     return json({ event: normalizedEvent, responses });
   }
 
+  if (request.method === "PATCH") {
+    const { archived } = await request.json();
+    const updatedEvent = { ...event, archived: !!archived };
+    await env.KV.put(`event:${id}`, JSON.stringify(updatedEvent));
+    const rawIndex = await env.KV.get("events_index");
+    if (rawIndex) {
+      const index = JSON.parse(rawIndex).map(e =>
+        e.id === id ? { ...e, archived: !!archived } : e
+      );
+      await env.KV.put("events_index", JSON.stringify(index));
+    }
+    return json({ ok: true });
+  }
+
   if (request.method === "DELETE") {
     // イベント本体を削除、回答も並列削除
     await Promise.all([

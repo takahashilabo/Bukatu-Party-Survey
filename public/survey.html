@@ -121,7 +121,8 @@ function nameToId(name) {
 async function load() {
   const res = await fetch(`/api/events/${eventId}`);
   if (!res.ok) {
-    document.getElementById('member-list-wrap').innerHTML = '<div class="error-msg">イベントが見つかりません</div>';
+    const msg = res.status === 410 ? 'このイベントは終了しました' : 'イベントが見つかりません';
+    document.getElementById('member-list-wrap').innerHTML = `<div class="error-msg">${msg}</div>`;
     return;
   }
   const data = await res.json();

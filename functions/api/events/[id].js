@@ -18,6 +18,8 @@ export async function onRequest({ request, env, params }) {
   if (!raw) return err("イベントが見つかりません", 404);
 
   const event = JSON.parse(raw);
+  if (event.archived) return err("このイベントは終了しました", 410);
+
   const choices = normalizeChoices(event);
 
   if (request.method === "GET") {
